@@ -24,11 +24,17 @@ jobs:
 
       - name: Create venv and install dependencies
         run: |
-          uv venv
+          uv venv -p ${{ matrix.python-version }}
           uv pip install "mcp[cli]>=1.9.0" pytest
 
-      - name: Verify server imports cleanly
-        run: uv run python -c "import server; print('Server module loaded successfully')"
+      - name: Verify server imports
+        shell: bash
+        run: |
+          source .venv/bin/activate 2>/dev/null || .venv/Scripts/activate
+          python -c "import server; print('OK')"
 
       - name: Run tests
-        run: uv run python -m pytest tests/ -v
+        shell: bash
+        run: |
+          source .venv/bin/activate 2>/dev/null || .venv/Scripts/activate
+          python -m pytest tests/ -v
