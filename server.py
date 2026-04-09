@@ -366,5 +366,112 @@ def codex_read_session(
     return "\n".join(lines)
 
 
-if __name__ == "__main__":
+
+@mcp.tool()
+def codex_search_content(
+    keyword: str,
+    limit: int = 10,
+    context_chars: int = 200,
+) -> str:
+    """Search across all Codex session conversations for a keyword.
+
+    Unlike codex_list_sessions (which only searches titles and first messages),
+    this tool scans the full conversation text of every session, including
+    agent responses, user messages, and tool calls.
+
+    Args:
+        keyword: The keyword or phrase to search for (case-insensitive).
+        limit: Maximum number of matching sessions to return (default 10).
+        context_chars: Characters of context to show around each match
+                       (default 200).
+    """
+    if not keyword.strip():
+        return "Please provide a non-empty keyword."
+
+    kw_lower = keyword.lower()
+    results: list[dict] = []
+
+    # Gather session metadata from DB when available.
+    session_meta: dict[str, dict] = {}
+    if STATE_DB.exists():
+        try:
+            conn = _get_db()
+            rows = conn.execute(
+                "SELECT id, title, model, updated_at FROM threads"
+            ).fetchall()
+            conn.close()
+            for sid, title, model, updated in rows:
+                session_meta[sid] = {
+                    "title": title or "(no title)",
+                    "model": model or "?",
+                    "updated": _ts_to_iso(updated),
+                }
+        except sqlite3.Error:
+            pass
+
+    if not SESSIONS_DIR.exists():
+        return "Codex sessions directory not found at " + str(SESSIONS_DIR)
+
+    for jsonl_file in sorted(SESSIONS_DIR.rglob("*.jsonl"), reverse=True):
+        if len(results) >= limit:
+            break
+
+        # Derive session ID from the filename (UUID-like stem).
+        stem = jsonl_file.stem
+        meta = session_meta.get(stem, {"title": stem, "model": "?", "updated": "?"})
+
+        matches: list[str] = []
+        try:
+            with open(jsonl_file, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    payload = data.get("payload", {})
+                    for field in ("message", "text", "arguments", "first_user_message"):
+                        text = payload.get(field, "")
+                        if not isinstance(text, str):
+                            continue
+                        idx = text.lower().find(kw_lower)
+                        if idx != -1:
+                            start = max(0, idx - context_chars // 2)
+                            end = min(len(text), idx + len(keyword) + context_chars // 2)
+                            snippet = text[start:end].strip()
+                            if start > 0:
+                                snippet = "…" + snippet
+                            if end < len(text):
+                                snippet = snippet + "…"
+                            matches.append(snippet)
+                            break  # one match per line is enough
+        except OSError:
+            continue
+
+        if matches:
+            results.append(
+                {
+                    "id": stem,
+                    "title": meta["title"],
+                    "model": meta["model"],
+                    "updated": meta["updated"],
+                    "matches": matches[:3],  # up to 3 snippets per session
+                }
+            )
+
+    if not results:
+        return f"No sessions found containing '{keyword}'."
+
+    lines = [f"Found {len(results)} session(s) matching '{keyword}':\n"]
+    for r in results:
+        lines.append(f"  {r['id']}")
+        lines.append(f"    {r['updated']}  |  model={r['model']}  |  {r['title']}")
+        for snippet in r["matches"]:
+            safe = snippet.replace("\n", " ")
+            lines.append(f"    >> {safe[:300]}")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+if __name__ == '__main__':
     mcp.run()
