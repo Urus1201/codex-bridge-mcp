@@ -28,13 +28,7 @@ jobs:
           uv pip install "mcp[cli]>=1.9.0" pytest
 
       - name: Verify server imports
-        shell: bash
-        run: |
-          source .venv/bin/activate 2>/dev/null || .venv/Scripts/activate
-          python -c "import server; print('OK')"
+        run: uv run --no-project python -c "import server; print('OK')"
 
       - name: Run tests
-        shell: bash
-        run: |
-          source .venv/bin/activate 2>/dev/null || .venv/Scripts/activate
-          python -m pytest tests/ -v
+        run: uv run --no-project python -m pytest tests/ -v
