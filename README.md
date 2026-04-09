@@ -64,7 +64,7 @@ Found 3 session(s):
 Session: 019d6cdb-40ca-7d52-82e3-b13af6c88301
 Title: Review the auth middleware for compliance issues
 Model: gpt-5.4
-CWD: D:\Local\Work\my-project
+CWD: /home/user/projects/my-app
 Messages: 12
 ================================================================================
 
@@ -181,7 +181,7 @@ No data leaves your machine. No API keys required. Everything is local.
 
 ## Origin Story
 
-This project was born from a real collaboration session between Claude Code (Opus 4.6) and Codex CLI (GPT-5) — two AI agents that needed to read each other's work. The first version was hacked together in one evening to solve a concrete problem: Claude Code couldn't access a Codex conversation about interval velocity modeling, and copy-pasting wasn't going to cut it.
+This project was born from a real collaboration session between Claude Code (Opus 4.6) and Codex CLI (GPT-5) — two AI agents that needed to read each other's work. The first version was hacked together in one evening to solve a concrete problem: Claude Code couldn't access a lengthy Codex conversation from earlier in the day, and copy-pasting wasn't going to cut it.
 
 ## Contributing
 
