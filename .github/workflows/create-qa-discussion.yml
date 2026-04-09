@@ -1,0 +1,53 @@
+name: Create Q&A Discussion
+
+on:
+  workflow_dispatch:
+
+permissions:
+  discussions: write
+
+jobs:
+  create-discussion:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Q&A discussion via GitHub API
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get the repo info and Q&A category ID
+            const repoInfo = await github.graphql(`
+              {
+                repository(owner: "Urus1201", name: "codex-bridge-mcp") {
+                  id
+                  discussionCategories(first: 10) {
+                    nodes { id name isAnswerable }
+                  }
+                }
+              }
+            `);
+
+            const qaCategory = repoInfo.repository.discussionCategories.nodes
+              .find(c => c.isAnswerable && c.name === "Q&A");
+
+            if (!qaCategory) {
+              core.setFailed("No answerable Q&A category found");
+              return;
+            }
+
+            // Create the discussion as github-actions[bot]
+            const result = await github.graphql(`
+              mutation {
+                createDiscussion(input: {
+                  repositoryId: "${repoInfo.repository.id}",
+                  categoryId: "${qaCategory.id}",
+                  title: "How do I filter sessions by model type in codex_list_sessions?",
+                  body: "I use both \`o4-mini\` and \`o3\` models in my Codex sessions. When I call \`codex_list_sessions\`, all sessions are returned regardless of model. Is there a way to filter the output to only show sessions from a specific model? A \`model\` parameter or a keyword filter on model name would be very useful."
+                }) {
+                  discussion { id number url }
+                }
+              }
+            `);
+
+            console.log("Created discussion:", result.createDiscussion.discussion.url);
+            core.setOutput("discussion_url", result.createDiscussion.discussion.url);
+            core.setOutput("discussion_number", result.createDiscussion.discussion.number);
